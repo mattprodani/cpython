@@ -60,6 +60,7 @@ struct _pythread_runtime_state {
 #ifdef _USE_PTHREADS
     // This matches when thread_pthread.h is used.
     struct {
+        int condattr_initialized;
         /* NULL when pthread_condattr_setclock(CLOCK_MONOTONIC) is not supported. */
         pthread_condattr_t *ptr;
 # ifdef CONDATTR_MONOTONIC
@@ -77,6 +78,12 @@ struct _pythread_runtime_state {
 #endif
 };
 
+#ifdef _USE_PTHREADS
+extern pthread_condattr_t *_PyThread_init_condattr_monotonic(void);
+static inline pthread_condattr_t *_PyThread_get_condattr_monotonic(void) {
+    return _PyThread_init_condattr_monotonic();
+}
+#endif
 
 #ifdef HAVE_FORK
 /* Private function to reinitialize a lock at fork in the child process.

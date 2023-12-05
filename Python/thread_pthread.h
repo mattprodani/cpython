@@ -124,21 +124,43 @@
 
 #define condattr_monotonic _PyRuntime.threads._condattr_monotonic.ptr
 
-static void
-init_condattr(void)
+pthread_condattr_t *
+_PyThread_init_condattr_monotonic(void)
 {
 #ifdef CONDATTR_MONOTONIC
+    if(!condattr_monotonic)
+    {
+
 # define ca _PyRuntime.threads._condattr_monotonic.val
-    // XXX We need to check the return code?
-    pthread_condattr_init(&ca);
-    // XXX We need to run pthread_condattr_destroy() during runtime fini.
-    if (pthread_condattr_setclock(&ca, CLOCK_MONOTONIC) == 0) {
-        condattr_monotonic = &ca;  // Use monotonic clock
+        pthread_condattr_init(&ca);
+
+        if(pthread_condattr_setclock(&ca, CLOCK_MONOTONIC) == 0) {
+            condattr_monotonic = &ca;  // Use monotonic clock
+        }
+
     }
+
 # undef ca
 #endif  // CONDATTR_MONOTONIC
-}
 
+    return condattr_monotonic;
+}
+//
+// static void
+// init_condattr(void)
+// {
+// #ifdef CONDATTR_MONOTONIC
+// # define ca _PyRuntime.threads._condattr_monotonic.val
+//     // XXX We need to check the return code?
+//     pthread_condattr_init(&ca);
+//     // XXX We need to run pthread_condattr_destroy() during runtime fini.
+//     if (pthread_condattr_setclock(&ca, CLOCK_MONOTONIC) == 0) {
+//         condattr_monotonic = &ca;  // Use monotonic clock
+//     }
+// # undef ca
+// #endif  // CONDATTR_MONOTONIC
+// }
+//
 int
 _PyThread_cond_init(PyCOND_T *cond)
 {
@@ -207,7 +229,6 @@ PyThread__init_thread(void)
         pthread_init();
 #endif
     }
-    init_condattr();
 }
 
 /*
