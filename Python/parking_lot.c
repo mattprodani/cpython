@@ -6,6 +6,7 @@
 #include "pycore_pyerrors.h"    // _Py_FatalErrorFormat
 #include "pycore_pystate.h"     // _PyThreadState_GET
 #include "pycore_semaphore.h"   // _PySemaphore
+#include "pycore_time.h"
 
 #include <stdbool.h>
 
@@ -67,10 +68,14 @@ _PySemaphore_Init(_PySemaphore *sema)
         Py_FatalError("parking_lot: sem_init failed");
     }
 #else
+
+
+    pthread_condattr_t *condattr_monotonic = _PyThread_get_condattr_monotonic();
+
     if (pthread_mutex_init(&sema->mutex, NULL) != 0) {
         Py_FatalError("parking_lot: pthread_mutex_init failed");
     }
-    if (pthread_cond_init(&sema->cond, NULL)) {
+    if (pthread_cond_init(&sema->cond, condattr_monotonic)) {
         Py_FatalError("parking_lot: pthread_cond_init failed");
     }
     sema->counter = 0;
@@ -160,7 +165,14 @@ _PySemaphore_PlatformWait(_PySemaphore *sema, _PyTime_t timeout)
         if (timeout >= 0) {
             struct timespec ts;
 
-            _PyTime_t deadline = _PyTime_Add(_PyTime_GetSystemClock(), timeout);
+            _PyTime_t deadline;
+            if (_PyThread_get_condattr_monotonic() != NULL) {
+                deadline = _PyTime_Add(_PyTime_GetMonotonicClock(), timeout);
+            }
+            else
+            {
+            deadline = _PyTime_Add(_PyTime_GetSystemClock(), timeout);
+            }
             _PyTime_AsTimespec_clamp(deadline, &ts);
 
             err = pthread_cond_timedwait(&sema->cond, &sema->mutex, &ts);
